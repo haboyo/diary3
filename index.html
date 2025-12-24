@@ -69,7 +69,6 @@
         .btn-press:active { transform: scale(0.96); transition: transform 0.1s; }
         textarea:focus, input:focus { outline: none; }
         
-        /* 일지 본문 상하 간격 줄임 */
         .journal-textarea { 
             font-size: 15px !important; 
             line-height: 1.4 !important; 
@@ -78,7 +77,6 @@
             min-height: 250px; 
         }
 
-        /* 메모 본문 상하 간격 줄임 */
         .memo-content {
             line-height: 1.4 !important;
         }
@@ -94,6 +92,18 @@
 
         .btn-share { background-color: var(--share-yellow); color: #3C1E1E; font-weight: 800; font-size: 11px; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; }
         .btn-copy { background-color: #F1F0EB; color: #1A1A1A; padding: 6px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+
+        /* 태그 추천 칩 스타일 */
+        .tag-chip {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: white;
+            border: 1px solid #E5E7EB;
+            white-space: nowrap;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -104,7 +114,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         const KOREAN_HOLIDAYS = {
             "2025": {"01-01":"신정","01-27":"설날연휴","01-28":"설날","01-29":"설날연휴","01-30":"대체공휴일","03-01":"삼일절","03-03":"대체공휴일","05-05":"어린이날","05-06":"대체공휴일","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-05":"추석연휴","10-06":"추석","10-07":"추석연휴","10-08":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
@@ -116,7 +126,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.4.1';
+        const APP_VERSION = 'v3.5.0';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -142,27 +152,24 @@
             const [newMemo, setNewMemo] = useState({ content: '', tag: '' });
             const [searchQuery, setSearchQuery] = useState('');
 
-            // 로컬 스토리지 실시간 저장 (앱 종료 대비)
+            // 로컬 스토리지 실시간 저장
             useEffect(() => {
                 localStorage.setItem(`${STORAGE_KEY}_journals`, JSON.stringify(journals));
                 localStorage.setItem(`${STORAGE_KEY}_memos`, JSON.stringify(memos));
                 localStorage.setItem(`${STORAGE_KEY}_todos`, JSON.stringify(todos));
             }, [journals, memos, todos]);
 
-            // 자정 자동 백업 로직
+            // 자정 자동 백업
             useEffect(() => {
                 const checkAndBackup = () => {
                     const now = new Date();
                     const lastBackupDate = localStorage.getItem(`${STORAGE_KEY}_last_backup_date`);
                     const todayStr = now.toDateString();
-
-                    // 오늘 백업을 하지 않았고, 시간이 자정(00시)대일 때 자동 실행
                     if (lastBackupDate !== todayStr && now.getHours() === 0) {
                         handleExport(true); 
                         localStorage.setItem(`${STORAGE_KEY}_last_backup_date`, todayStr);
                     }
                 };
-
                 const timer = setInterval(checkAndBackup, 60000); 
                 return () => clearInterval(timer);
             }, [journals, memos, todos]);
@@ -174,6 +181,27 @@
                 d.setDate(d.getDate() - d.getDay());
                 setWeekAnchor(d);
             }, [currentDate]);
+
+            // 기존 태그 목록 추출 (중복 제거)
+            const existingTags = useMemo(() => {
+                const tags = memos.map(m => m.tag).filter(t => t && t.trim() !== '');
+                return [...new Set(tags)].sort();
+            }, [memos]);
+
+            // 태그별로 그룹화된 메모 리스트
+            const groupedMemos = useMemo(() => {
+                const groups = {};
+                const noTag = [];
+                memos.forEach(memo => {
+                    if (memo.tag && memo.tag.trim() !== '') {
+                        if (!groups[memo.tag]) groups[memo.tag] = [];
+                        groups[memo.tag].push(memo);
+                    } else {
+                        noTag.push(memo);
+                    }
+                });
+                return { groups, noTag };
+            }, [memos]);
 
             const showToast = (msg) => {
                 setMessage(msg);
@@ -200,9 +228,7 @@
                 if (!searchQuery.trim()) return [];
                 const res = [];
                 Object.entries(journals).forEach(([dateStr, content]) => {
-                    if (content.includes(searchQuery)) {
-                        res.push({ type: 'Journal', date: dateStr, text: content });
-                    }
+                    if (content.includes(searchQuery)) res.push({ type: 'Journal', date: dateStr, text: content });
                 });
                 memos.forEach(m => {
                     if (m.content.includes(searchQuery) || (m.tag && m.tag.includes(searchQuery))) {
@@ -210,9 +236,7 @@
                     }
                 });
                 todos.forEach(t => {
-                    if (t.text.includes(searchQuery)) {
-                        res.push({ type: 'Todo', id: t.id, text: t.text });
-                    }
+                    if (t.text.includes(searchQuery)) res.push({ type: 'Todo', id: t.id, text: t.text });
                 });
                 return res;
             };
@@ -228,7 +252,6 @@
             const handleShare = () => {
                 const shareText = getFormattedShareText();
                 if (!shareText) return showToast('공유할 내용이 없습니다');
-                
                 if (navigator.share) {
                     navigator.share({ title: APP_NAME, text: shareText }).catch(() => {});
                 } else {
@@ -374,9 +397,18 @@
                         )}
 
                         {activeTab === 'Memo' && (
-                            <div className="fade-in space-y-4 pt-3 pb-8">
-                                <div className="bg-[#F1F0EB] p-3 rounded-2xl space-y-2">
-                                    <input className="w-full bg-white px-3 py-2 rounded-lg text-xs font-bold" placeholder="#태그 (선택)" value={newMemo.tag} onChange={e=>setNewMemo({...newMemo, tag: e.target.value})} />
+                            <div className="fade-in space-y-6 pt-3 pb-8">
+                                <div className="bg-[#F1F0EB] p-3 rounded-2xl space-y-3">
+                                    <div className="space-y-2">
+                                        <input className="w-full bg-white px-3 py-2 rounded-lg text-xs font-bold" placeholder="#태그 (선택)" value={newMemo.tag} onChange={e=>setNewMemo({...newMemo, tag: e.target.value})} />
+                                        {existingTags.length > 0 && (
+                                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                                {existingTags.map(tag => (
+                                                    <button key={tag} onClick={() => setNewMemo({...newMemo, tag})} className="tag-chip btn-press">#{tag}</button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <textarea className="w-full bg-transparent p-1 text-[13px] min-h-[60px] resize-none border-none memo-content" placeholder="여기에 메모하세요..." value={newMemo.content} onChange={e=>setNewMemo({...newMemo, content: e.target.value})} />
                                     <button onClick={()=>{
                                         if(!newMemo.content.trim()) return;
@@ -384,16 +416,48 @@
                                         setNewMemo({content:'', tag:''});
                                     }} className="w-full bg-[#1A1A1A] text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Add Memo</button>
                                 </div>
-                                {memos.map(m => (
-                                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
-                                        {m.tag && <span className="text-[9px] font-bold text-slate-400 mb-2 block">#{m.tag}</span>}
-                                        <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
-                                        <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
-                                            <span className="text-[8px] font-black opacity-20">{m.date}</span>
-                                            <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
+
+                                <div className="space-y-8">
+                                    {/* 태그 그룹별 표시 */}
+                                    {Object.entries(groupedMemos.groups).map(([tagName, items]) => (
+                                        <div key={tagName} className="space-y-3">
+                                            <div className="flex items-center gap-2 px-1">
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">#{tagName}</span>
+                                                <div className="h-[1px] flex-1 bg-blue-100" />
+                                            </div>
+                                            {items.map(m => (
+                                                <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
+                                                    <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
+                                                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
+                                                        <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                                        <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+
+                                    {/* 태그 없는 메모 표시 */}
+                                    {groupedMemos.noTag.length > 0 && (
+                                        <div className="space-y-3">
+                                            {Object.keys(groupedMemos.groups).length > 0 && (
+                                                <div className="flex items-center gap-2 px-1">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Others</span>
+                                                    <div className="h-[1px] flex-1 bg-slate-100" />
+                                                </div>
+                                            )}
+                                            {groupedMemos.noTag.map(m => (
+                                                <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
+                                                    <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
+                                                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
+                                                        <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                                        <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
