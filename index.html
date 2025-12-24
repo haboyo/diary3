@@ -3,6 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- 홈 화면 추가 시 아이콘 설정 (PWA / Mobile Home Screen) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bong's Diary">
+    
+    <!-- 방금 생성한 감성 다이어리 아이콘 이미지 적용 -->
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/BongDiary/Assets/main/diary_icon.png">
+    <link rel="icon" href="https://raw.githubusercontent.com/BongDiary/Assets/main/diary_icon.png">
+
     <title>Bong's Diary</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -93,7 +104,6 @@
         .btn-share { background-color: var(--share-yellow); color: #3C1E1E; font-weight: 800; font-size: 11px; padding: 6px 14px; border-radius: 8px; display: flex; align-items: center; gap: 6px; }
         .btn-copy { background-color: #F1F0EB; color: #1A1A1A; padding: 6px 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 
-        /* 태그 추천 칩 스타일 */
         .tag-chip {
             font-size: 10px;
             font-weight: 700;
@@ -152,14 +162,12 @@
             const [newMemo, setNewMemo] = useState({ content: '', tag: '' });
             const [searchQuery, setSearchQuery] = useState('');
 
-            // 로컬 스토리지 실시간 저장
             useEffect(() => {
                 localStorage.setItem(`${STORAGE_KEY}_journals`, JSON.stringify(journals));
                 localStorage.setItem(`${STORAGE_KEY}_memos`, JSON.stringify(memos));
                 localStorage.setItem(`${STORAGE_KEY}_todos`, JSON.stringify(todos));
             }, [journals, memos, todos]);
 
-            // 자정 자동 백업
             useEffect(() => {
                 const checkAndBackup = () => {
                     const now = new Date();
@@ -182,13 +190,11 @@
                 setWeekAnchor(d);
             }, [currentDate]);
 
-            // 기존 태그 목록 추출 (중복 제거)
             const existingTags = useMemo(() => {
                 const tags = memos.map(m => m.tag).filter(t => t && t.trim() !== '');
                 return [...new Set(tags)].sort();
             }, [memos]);
 
-            // 태그별로 그룹화된 메모 리스트
             const groupedMemos = useMemo(() => {
                 const groups = {};
                 const noTag = [];
@@ -418,7 +424,6 @@
                                 </div>
 
                                 <div className="space-y-8">
-                                    {/* 태그 그룹별 표시 */}
                                     {Object.entries(groupedMemos.groups).map(([tagName, items]) => (
                                         <div key={tagName} className="space-y-3">
                                             <div className="flex items-center gap-2 px-1">
@@ -437,7 +442,6 @@
                                         </div>
                                     ))}
 
-                                    {/* 태그 없는 메모 표시 */}
                                     {groupedMemos.noTag.length > 0 && (
                                         <div className="space-y-3">
                                             {Object.keys(groupedMemos.groups).length > 0 && (
