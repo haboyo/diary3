@@ -24,6 +24,7 @@
             --soft-gray: #F1F0EB;
             --weekend-sun: #E15B5B;
             --weekend-sat: #5B82E1;
+            --share-yellow: #FEE500;
         }
 
         html, body {
@@ -72,7 +73,6 @@
         .btn-press:active { transform: scale(0.96); transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         textarea:focus, input:focus { outline: none; }
         
-        /* 일지 본문 줄 간격 조정 (기존 1.7 -> 1.4) */
         .journal-textarea { 
             font-size: 14.5px !important; 
             line-height: 1.4 !important; 
@@ -90,7 +90,12 @@
         .text-sat { color: var(--weekend-sat) !important; }
 
         .action-icon-btn { background: var(--soft-gray); border-radius: 8px; padding: 6px 12px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
-        .share-btn { background: #E8E8E2; color: var(--text-main); font-weight: 800; }
+        .share-btn { 
+            background: var(--share-yellow) !important; 
+            color: #1A1A1A; 
+            font-weight: 800; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
 
         .tag-pill { display: inline-block; background: #f0f0eb; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #777; margin-right: 3px; margin-top: 3px; }
         .tag-select { cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
@@ -102,6 +107,25 @@
         .memo-input-card { background: #F1F0EB; border-radius: 16px; padding: 12px; }
         .memo-textarea-small { font-size: 14px !important; background: transparent; width: 100%; min-height: 80px; resize: none; border: none; line-height: 1.4; }
         .memo-tag-input-small { font-size: 12px !important; background: white; border-radius: 8px; padding: 6px 10px; width: 100%; font-weight: 600; }
+
+        .save-indicator {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            color: #4CAF50;
+            background: rgba(255,255,255,0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            z-index: 100;
+        }
+        .save-indicator.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -124,6 +148,7 @@
             const [viewMonth, setViewMonth] = useState(new Date());
             const [showCalendar, setShowCalendar] = useState(false);
             const [message, setMessage] = useState('');
+            const [isSaving, setIsSaving] = useState(false);
             const [copyStatus, setCopyStatus] = useState({});
             
             const [weekAnchor, setWeekAnchor] = useState(() => {
@@ -149,10 +174,18 @@
                 return Array.from(tags).sort();
             }, [memos]);
 
+            // 실시간 자동 저장 로직 ( journals, memos, todos가 바뀔 때마다 실행 )
             useEffect(() => {
                 localStorage.setItem(`${STORAGE_KEY}_journals`, JSON.stringify(journals));
                 localStorage.setItem(`${STORAGE_KEY}_memos`, JSON.stringify(memos));
                 localStorage.setItem(`${STORAGE_KEY}_todos`, JSON.stringify(todos));
+                
+                // 일기 작성 시 시각적 효과
+                if (activeTab === 'Journal') {
+                    setIsSaving(true);
+                    const timer = setTimeout(() => setIsSaving(false), 800);
+                    return () => clearTimeout(timer);
+                }
             }, [journals, memos, todos]);
 
             useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
@@ -267,7 +300,6 @@
                 reader.readAsText(file);
             };
 
-            // 통합 검색 결과 계산
             const searchResults = useMemo(() => {
                 if (!searchQuery.trim()) return { journals: [], memos: [] };
                 
@@ -287,6 +319,8 @@
 
             return (
                 <div className="app-container">
+                    <div className={`save-indicator ${isSaving ? 'visible' : ''}`}>Saving...</div>
+                    
                     {message && (
                         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[2000] bg-[#1A1A1A] text-white px-5 py-2 rounded-full text-[10px] font-bold shadow-2xl fade-in text-center">
                             {message}
@@ -357,7 +391,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <textarea className="flex-1 bg-transparent border-none resize-none journal-textarea placeholder:opacity-10 no-scrollbar" placeholder="오늘 하루는 어땠나요?" value={journals[currentDate.toDateString()] || ''} onChange={(e) => setJournals({...journals, [currentDate.toDateString()]: e.target.value})} />
+                                <textarea className="flex-1 bg-transparent border-none resize-none journal-textarea placeholder:opacity-10 no-scrollbar" placeholder="오늘 하루는 어땠나요? (입력 시 자동 저장)" value={journals[currentDate.toDateString()] || ''} onChange={(e) => setJournals({...journals, [currentDate.toDateString()]: e.target.value})} />
                             </div>
                         )}
 
@@ -422,7 +456,6 @@
                                 
                                 {searchQuery && (
                                     <div className="space-y-6">
-                                        {/* 통합 검색 결과: 일기 */}
                                         {searchResults.journals.length > 0 && (
                                             <div>
                                                 <h3 className="text-[10px] font-black tracking-widest uppercase opacity-30 mb-3 px-1">Journals ({searchResults.journals.length})</h3>
@@ -440,7 +473,6 @@
                                             </div>
                                         )}
                                         
-                                        {/* 통합 검색 결과: 메모 */}
                                         {searchResults.memos.length > 0 && (
                                             <div>
                                                 <h3 className="text-[10px] font-black tracking-widest uppercase opacity-30 mb-3 px-1">Memos ({searchResults.memos.length})</h3>
@@ -470,12 +502,6 @@
                                         )}
                                     </div>
                                 )}
-                                
-                                {!searchQuery && (
-                                    <div className="py-20 text-center">
-                                        <p className="text-[11px] font-black tracking-widest uppercase opacity-10">Type to find records</p>
-                                    </div>
-                                )}
                             </div>
                         )}
 
@@ -500,7 +526,7 @@
                                         <h3 className="text-[11px] font-black tracking-widest uppercase opacity-30 mb-4">System Info</h3>
                                         <div className="flex justify-between items-center px-2">
                                             <span className="text-[10px] opacity-40 font-bold uppercase">Version</span>
-                                            <span className="text-[10px] font-black">v3.7 Refined</span>
+                                            <span className="text-[10px] font-black">v4.0 Auto-Save</span>
                                         </div>
                                     </div>
                                 </div>
