@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- PWA & iOS Home Screen Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Bong's Diary">
@@ -68,13 +67,6 @@
         }
 
         .cursive-title { font-family: 'Dancing Script', cursive; font-size: 1.7rem; color: var(--text-main); opacity: 0.9; }
-        
-        .week-slider-container { display: flex; align-items: center; gap: 8px; }
-        .week-days-scroll { display: flex; flex: 1; justify-content: space-between; overflow-x: hidden; }
-
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
         .btn-press:active { transform: scale(0.96); transition: transform 0.1s; }
         textarea:focus, input:focus { outline: none; }
         
@@ -86,10 +78,6 @@
             min-height: 250px; 
         }
 
-        .memo-content {
-            line-height: 1.4 !important;
-        }
-
         .line-clamp-2-custom {
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -97,19 +85,14 @@
             overflow: hidden;
         }
 
-        .memo-card-highlighted {
+        .memo-card-highlighted, .todo-card-highlighted {
             border-color: #3b82f6 !important;
             border-width: 2px !important;
-            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1);
-            transform: scale(1.01);
-            z-index: 5;
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.15);
+            transform: scale(1.02);
+            z-index: 10;
         }
 
-        .memo-textarea-expandable {
-            transition: min-height 0.2s ease-in-out;
-            overflow-y: hidden;
-        }
-        
         .fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -132,6 +115,20 @@
             white-space: nowrap;
             cursor: pointer;
         }
+
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+        }
+
+        .i-icon {
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 1;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body>
@@ -145,30 +142,56 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         const KOREAN_HOLIDAYS = {
-            "2025": {"01-01":"신정","01-28":"설날","01-27":"설날연휴","01-29":"설날연휴","01-30":"대체공휴일","03-01":"삼일절","03-03":"대체공휴일","05-05":"어린이날","05-06":"대체공휴일","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-06":"추석","10-05":"추석연휴","10-07":"추석연휴","10-08":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
-            "2026": {"01-01":"신정","02-17":"설날","02-16":"설날연휴","02-18":"설날연휴","03-01":"삼일절","03-02":"대체공휴일","05-05":"어린이날","05-24":"석가탄신일","05-25":"대체공휴일","06-06":"현충일","08-15":"광복절","08-17":"대체공휴일","09-25":"추석","09-24":"추석연휴","09-26":"추석연휴","10-03":"개천절","10-05":"대체공휴일","10-09":"한글날","12-25":"성탄절"}
+            "2024": {"01-01":"신정","02-09":"설날연휴","02-10":"설날","02-11":"설날연휴","02-12":"대체공휴일","03-01":"삼일절","04-10":"선거일","05-05":"어린이날","05-06":"대체공휴일","05-15":"석가탄신일","06-06":"현충일","08-15":"광복절","09-16":"추석연휴","09-17":"추석","09-18":"추석연휴","10-03":"개천절","10-09":"한글날","12-25":"성탄절"},
+            "2025": {"01-01":"신정","01-27":"설날연휴","01-28":"설날","01-29":"설날연휴","01-30":"대체공휴일","03-01":"삼일절","03-03":"대체공휴일","05-05":"어린이날","05-06":"대체공휴일","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-05":"추석연휴","10-06":"추석","10-07":"추석연휴","10-08":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
+            "2026": {"01-01":"신정","02-16":"설날연휴","02-17":"설날","02-18":"설날연휴","03-01":"삼일절","03-02":"대체공휴일","05-05":"어린이날","05-24":"석가탄신일","05-25":"대체공휴일","06-06":"현충일","08-15":"광복절","08-17":"대체공휴일","09-24":"추석연휴","09-25":"추석","09-26":"추석연휴","10-03":"개천절","10-05":"대체공휴일","10-09":"한글날","12-25":"성탄절"}
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.9';
+        const APP_VERSION = 'v3.7.17';
         const APP_NAME = "Bong's Diary";
+
+        const toLocalDateString = (date) => {
+            if (!date) return "";
+            const d = typeof date === 'string' ? new Date(date) : date;
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        };
+
+        const Icon = ({ name, className = "w-4 h-4", style = {} }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide && iconRef.current) {
+                    iconRef.current.innerHTML = '';
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    i.className = className;
+                    Object.assign(i.style, style);
+                    iconRef.current.appendChild(i);
+                    window.lucide.createIcons({ attrs: { strokeWidth: 2 } });
+                }
+            }, [name, className]);
+            return <span ref={iconRef} className="i-icon" />;
+        };
 
         const App = () => {
             const [activeTab, setActiveTab] = useState('Journal');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [viewMonth, setViewMonth] = useState(new Date());
             const [showCalendar, setShowCalendar] = useState(false);
+            const [calendarMode, setCalendarMode] = useState('select');
             const [message, setMessage] = useState('');
-            
+            const [deleteConfirm, setDeleteConfirm] = useState({ show: false, type: null, id: null });
             const [expandedMemoIds, setExpandedMemoIds] = useState(new Set());
             const [highlightedMemoId, setHighlightedMemoId] = useState(null);
-            
+            const [highlightedTodoId, setHighlightedTodoId] = useState(null);
             const [weekAnchor, setWeekAnchor] = useState(() => {
                 const d = new Date();
                 d.setDate(d.getDate() - d.getDay());
                 return d;
             });
-            
             const fileInputRef = useRef(null);
             const memoTextareaRef = useRef(null);
             const mainScrollRef = useRef(null);
@@ -176,8 +199,7 @@
             const [journals, setJournals] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_journals`) || '{}'));
             const [memos, setMemos] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_memos`) || '[]'));
             const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_todos`) || '[]'));
-
-            const [newTodo, setNewTodo] = useState('');
+            const [newTodo, setNewTodo] = useState({ text: '', date: '' });
             const [newMemo, setNewMemo] = useState({ content: '', tag: '', id: null });
             const [searchQuery, setSearchQuery] = useState('');
 
@@ -188,14 +210,15 @@
             }, [journals, memos, todos]);
 
             useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [activeTab, showCalendar]);
+
+            useEffect(() => {
                 if (memoTextareaRef.current && activeTab === 'Memo') {
                     memoTextareaRef.current.style.height = 'auto';
-                    const scrollHeight = memoTextareaRef.current.scrollHeight;
-                    memoTextareaRef.current.style.height = `${Math.max(60, scrollHeight)}px`;
+                    memoTextareaRef.current.style.height = `${Math.max(60, memoTextareaRef.current.scrollHeight)}px`;
                 }
             }, [newMemo.content, activeTab]);
-
-            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
 
             useEffect(() => {
                 const d = new Date(currentDate);
@@ -204,17 +227,31 @@
             }, [currentDate]);
 
             useEffect(() => {
-                if (activeTab === 'Memo' && highlightedMemoId) {
-                    setTimeout(() => {
-                        const element = document.getElementById(`memo-${highlightedMemoId}`);
-                        if (element && mainScrollRef.current) {
-                            const rect = element.getBoundingClientRect();
-                            const scrollPos = element.offsetTop - (mainScrollRef.current.clientHeight / 2) + (rect.height / 2);
-                            mainScrollRef.current.scrollTo({ top: scrollPos, behavior: 'smooth' });
-                        }
-                    }, 300);
+                if (highlightedMemoId || highlightedTodoId) {
+                    const timer = setTimeout(() => {
+                        setHighlightedMemoId(null);
+                        setHighlightedTodoId(null);
+                    }, 2000);
+                    return () => clearTimeout(timer);
                 }
-            }, [activeTab, highlightedMemoId]);
+            }, [highlightedMemoId, highlightedTodoId]);
+
+            const currentDayTodos = useMemo(() => {
+                const dateKey = toLocalDateString(currentDate);
+                return todos.filter(t => t.date === dateKey);
+            }, [todos, currentDate]);
+
+            const organizedTodos = useMemo(() => {
+                const noDate = todos.filter(t => !t.date || t.date === "");
+                const withDate = todos.filter(t => t.date && t.date !== "");
+                const groups = withDate.reduce((acc, todo) => {
+                    if (!acc[todo.date]) acc[todo.date] = [];
+                    acc[todo.date].push(todo);
+                    return acc;
+                }, {});
+                const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+                return { noDate, groups, sortedDates };
+            }, [todos]);
 
             const existingTags = useMemo(() => {
                 const tags = memos.map(m => m.tag).filter(t => t && t.trim() !== '');
@@ -228,9 +265,7 @@
                     if (memo.tag && memo.tag.trim() !== '') {
                         if (!groups[memo.tag]) groups[memo.tag] = [];
                         groups[memo.tag].push(memo);
-                    } else {
-                        noTag.push(memo);
-                    }
+                    } else { noTag.push(memo); }
                 });
                 return { groups, noTag };
             }, [memos]);
@@ -241,16 +276,15 @@
             };
 
             const getHolidayName = (date) => {
-                const y = date.getFullYear().toString();
-                const m = String(date.getMonth() + 1).padStart(2, '0');
-                const d = String(date.getDate()).padStart(2, '0');
+                if (!date) return null;
+                const dObj = typeof date === 'string' ? new Date(date) : date;
+                const y = dObj.getFullYear().toString();
+                const m = String(dObj.getMonth() + 1).padStart(2, '0');
+                const d = String(dObj.getDate()).padStart(2, '0');
                 return KOREAN_HOLIDAYS[y]?.[`${m}-${d}`] || null;
             };
 
             const moveWeek = (offset) => {
-                const newAnchor = new Date(weekAnchor);
-                newAnchor.setDate(weekAnchor.getDate() + (offset * 7));
-                setWeekAnchor(newAnchor);
                 const newCurrent = new Date(currentDate);
                 newCurrent.setDate(currentDate.getDate() + (offset * 7));
                 setCurrentDate(newCurrent);
@@ -268,7 +302,9 @@
                     }
                 });
                 todos.forEach(t => {
-                    if (t.text.includes(searchQuery)) res.push({ type: 'Todo', id: t.id, text: t.text });
+                    if (t.text.includes(searchQuery)) {
+                        res.push({ type: 'Todo', id: t.id, text: t.text, date: t.date || "기한 없음" });
+                    }
                 });
                 return res;
             };
@@ -286,9 +322,7 @@
                 if (!shareText) return showToast('공유할 내용이 없습니다');
                 if (navigator.share) {
                     navigator.share({ title: APP_NAME, text: shareText }).catch(() => {});
-                } else {
-                    copyToClipboard(shareText);
-                }
+                } else { copyToClipboard(shareText); }
             };
 
             const copyToClipboard = (text) => {
@@ -296,25 +330,19 @@
                 tempInput.value = text;
                 document.body.appendChild(tempInput);
                 tempInput.select();
-                try {
-                    document.execCommand("copy");
-                    showToast('복사됨');
-                } catch (err) {
-                    showToast('복사 실패');
-                }
+                try { document.execCommand("copy"); showToast('복사됨'); } catch (err) { showToast('복사 실패'); }
                 document.body.removeChild(tempInput);
             };
 
-            const handleExport = (isAuto = false) => {
+            const handleExport = () => {
                 const data = { journals, memos, todos, exportedAt: new Date().toISOString() };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                const timestamp = isAuto ? 'auto_backup' : 'manual_backup';
-                a.download = `bongs_diary_${timestamp}.json`;
+                a.download = `bongs_diary_backup.json`;
                 a.click();
-                if (!isAuto) showToast('백업 완료');
+                showToast('백업 완료');
             };
 
             const handleImport = (e) => {
@@ -349,65 +377,113 @@
             const startEditMemo = (e, memo) => {
                 e.stopPropagation();
                 setNewMemo({ content: memo.content, tag: memo.tag || '', id: memo.id });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mainScrollRef.current) mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
             const handleMemoSelect = (memoId) => {
                 setHighlightedMemoId(prevId => prevId === memoId ? null : memoId);
                 setExpandedMemoIds(prev => {
                     const newSet = new Set(prev);
-                    if (newSet.has(memoId)) {
-                        newSet.delete(memoId);
-                    } else {
-                        newSet.add(memoId);
-                    }
+                    if (newSet.has(memoId)) newSet.delete(memoId); else newSet.add(memoId);
                     return newSet;
                 });
             };
 
-            const MemoCard = ({ m }) => {
-                const isExpanded = expandedMemoIds.has(m.id);
-                const isHighlighted = highlightedMemoId === m.id;
-                
+            const executeDelete = () => {
+                const { type, id } = deleteConfirm;
+                if (type === 'memo') setMemos(memos.filter(item => item.id !== id));
+                else if (type === 'todo') setTodos(todos.filter(item => item.id !== id));
+                setDeleteConfirm({ show: false, type: null, id: null });
+                showToast('삭제되었습니다');
+            };
+
+            const toggleTodo = (id) => {
+                setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+            };
+
+            const addTodo = () => {
+                if(!newTodo.text.trim()) return;
+                const newTodoItem = {
+                    id: Date.now(),
+                    text: newTodo.text,
+                    date: newTodo.date,
+                    done: false
+                };
+                setTodos(prev => [newTodoItem, ...prev]);
+                setNewTodo({ text: '', date: '' });
+                showToast('할 일이 추가되었습니다');
+            };
+
+            const TodoItem = ({ t }) => {
+                const holiday = t.date ? getHolidayName(t.date) : null;
+                const isSun = t.date && new Date(t.date).getDay() === 0;
+                const isSat = t.date && new Date(t.date).getDay() === 6;
+                const isHighlighted = highlightedTodoId === t.id;
+
                 return (
-                    <div 
-                        id={`memo-${m.id}`}
-                        onClick={() => handleMemoSelect(m.id)}
-                        className={`bg-white p-5 rounded-2xl border transition-all duration-300 cursor-pointer ${isHighlighted ? 'memo-card-highlighted' : 'border-black/5'}`}
-                    >
-                        <p className={`text-[14px] opacity-80 whitespace-pre-wrap memo-content transition-all ${!isExpanded ? 'line-clamp-2-custom' : ''}`}>
-                            {m.content}
-                        </p>
-                        <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
-                            <div className="flex items-center gap-3">
-                                <span className="text-[8px] font-black opacity-20">{m.date}</span>
-                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(m.content); }} className="text-[#1A1A1A] opacity-20 btn-press">
-                                    <i data-lucide="copy" className="w-3.5 h-3.5"></i>
-                                </button>
-                                <button onClick={(e) => startEditMemo(e, m)} className="text-[#1A1A1A] opacity-20 btn-press">
-                                    <i data-lucide="edit-3" className="w-3.5 h-3.5"></i>
-                                </button>
-                            </div>
-                            <button onClick={(e)=>{ e.stopPropagation(); setMemos(memos.filter(item=>item.id!==m.id)); }} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
+                    <div key={t.id} className={`flex items-center gap-3 bg-white p-4 rounded-2xl border transition-all duration-300 group ${isHighlighted ? 'todo-card-highlighted' : 'border-black/5 shadow-sm'}`}>
+                        <button 
+                            onClick={() => toggleTodo(t.id)} 
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all btn-press ${t.done ? 'bg-green-500 border-green-500' : 'border-slate-200'}`}
+                        >
+                            {t.done && <Icon name="check" className="w-4 h-4 text-white" />}
+                        </button>
+                        <div className="flex-1 flex flex-col cursor-pointer" onClick={() => toggleTodo(t.id)}>
+                            <span className={`text-[14px] font-semibold leading-tight transition-all duration-300 ${t.done ? 'opacity-20 line-through' : 'text-slate-700'}`}>{t.text}</span>
+                            {t.date && (
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className={`text-[9px] font-black uppercase flex items-center gap-1 ${t.done ? 'opacity-10' : (holiday || isSun) ? 'text-sun' : isSat ? 'text-sat' : 'opacity-30'}`}>
+                                        <Icon name="calendar" className="w-2.5 h-2.5" />{t.date}
+                                    </span>
+                                    {holiday && (
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-400 border border-red-100 ${t.done ? 'opacity-20' : ''}`}>
+                                            {holiday}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
+                        <button onClick={() => setDeleteConfirm({ show: true, type: 'todo', id: t.id })} className="opacity-0 group-hover:opacity-20 transition-opacity p-1 btn-press"><Icon name="trash-2" className="w-4 h-4" /></button>
                     </div>
                 );
             };
 
-            const handleTabChange = (tabId) => {
-                if (tabId === 'Search') {
-                    setExpandedMemoIds(new Set());
-                    setHighlightedMemoId(null);
-                }
-                setActiveTab(tabId);
-                if (tabId !== 'Search') setSearchQuery('');
-            };
+            const MemoCard = ({ m }) => (
+                <div 
+                    onClick={() => handleMemoSelect(m.id)}
+                    className={`bg-white p-5 rounded-2xl border transition-all duration-300 cursor-pointer ${highlightedMemoId === m.id ? 'memo-card-highlighted' : 'border-black/5'}`}
+                >
+                    <p className={`text-[14px] opacity-80 whitespace-pre-wrap transition-all ${!expandedMemoIds.has(m.id) ? 'line-clamp-2-custom' : ''}`} style={{ lineHeight: '1.4' }}>
+                        {m.content}
+                    </p>
+                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
+                        <div className="flex items-center gap-3">
+                            <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                            <button onClick={(e) => { e.stopPropagation(); copyToClipboard(m.content); }} className="text-[#1A1A1A] opacity-20 btn-press"><Icon name="copy" className="w-3.5 h-3.5" /></button>
+                            <button onClick={(e) => startEditMemo(e, m)} className="text-[#1A1A1A] opacity-20 btn-press"><Icon name="edit-3" className="w-3.5 h-3.5" /></button>
+                        </div>
+                        <button onClick={(e)=>{ e.stopPropagation(); setDeleteConfirm({ show: true, type: 'memo', id: m.id }); }} className="text-red-400 opacity-20"><Icon name="trash-2" className="w-3.5 h-3.5" /></button>
+                    </div>
+                </div>
+            );
 
             return (
                 <div className="app-container">
-                    {message && (
-                        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[2000] bg-[#1A1A1A] text-white px-5 py-2 rounded-full text-[11px] font-bold shadow-2xl fade-in text-center">
-                            {message}
+                    {message && <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[2000] bg-[#1A1A1A] text-white px-5 py-2 rounded-full text-[11px] font-bold shadow-2xl fade-in text-center">{message}</div>}
+
+                    {deleteConfirm.show && (
+                        <div className="fixed inset-0 z-[3000] flex items-center justify-center px-6 modal-overlay">
+                            <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl">
+                                <div className="text-center">
+                                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="alert-triangle" className="w-6 h-6 text-red-500" /></div>
+                                    <h3 className="text-lg font-black tracking-tight text-slate-900 mb-2">정말 삭제할까요?</h3>
+                                    <p className="text-sm text-slate-500 font-medium leading-relaxed mb-6">삭제된 기록은 되돌릴 수 없습니다.</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setDeleteConfirm({ show: false, type: null, id: null })} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-[13px] font-black uppercase btn-press">취소</button>
+                                    <button onClick={executeDelete} className="flex-1 py-3 bg-red-500 text-white rounded-xl text-[13px] font-black uppercase shadow-lg btn-press">삭제하기</button>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -416,43 +492,34 @@
                             <div className="flex-1">
                                 <div className="cursive-title mb-2">{APP_NAME}</div>
                                 <div className="flex items-center gap-2 mt-4 h-10">
-                                    <button onClick={() => { setViewMonth(new Date(currentDate)); setShowCalendar(true); }} className="text-2xl font-black tracking-tighter flex items-center gap-1.5 btn-press">
+                                    <button onClick={() => { setViewMonth(new Date(currentDate)); setCalendarMode('select'); setShowCalendar(true); }} className="text-2xl font-black tracking-tighter flex items-center gap-1.5 btn-press">
                                         {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
-                                        <i data-lucide="calendar" className="w-5 h-5 opacity-20"></i>
+                                        <Icon name="calendar" className="w-5 h-5 opacity-20" />
                                     </button>
-                                    {getHolidayName(currentDate) && (
-                                        <div className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-sun rounded border border-red-100">
-                                            {getHolidayName(currentDate)}
-                                        </div>
-                                    )}
+                                    {getHolidayName(currentDate) && <div className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-sun rounded border border-red-100">{getHolidayName(currentDate)}</div>}
                                 </div>
                             </div>
-                            <button onClick={() => {
-                                const today = new Date();
-                                setCurrentDate(today);
-                            }} className="mt-2 text-[10px] font-black tracking-widest opacity-40 uppercase border-b border-black/10 btn-press">Today</button>
+                            <button onClick={() => setCurrentDate(new Date())} className="mt-2 text-[10px] font-black tracking-widest opacity-40 uppercase border-b border-black/10 btn-press">Today</button>
                         </div>
-
                         {activeTab === 'Journal' && (
-                            <div className="week-slider-container px-0.5 pb-2">
-                                <button onClick={() => moveWeek(-1)} className="p-1.5 opacity-20 btn-press"><i data-lucide="chevron-left" className="w-4 h-4"></i></button>
-                                <div className="week-days-scroll">
+                            <div className="flex items-center gap-2 px-0.5 pb-2">
+                                <button onClick={() => moveWeek(-1)} className="p-1.5 opacity-20 btn-press"><Icon name="chevron-left" className="w-4 h-4" /></button>
+                                <div className="flex flex-1 justify-between overflow-x-hidden">
                                     {Array.from({ length: 7 }, (_, i) => {
                                         const d = new Date(weekAnchor);
                                         d.setDate(weekAnchor.getDate() + i);
                                         const isSelected = d.toDateString() === currentDate.toDateString();
                                         const hDay = getHolidayName(d);
                                         const isSun = d.getDay() === 0 || hDay;
-                                        const isSat = d.getDay() === 6;
                                         return (
                                             <button key={i} onClick={() => setCurrentDate(d)} className="flex flex-col items-center flex-1">
-                                                <span className={`text-[10px] font-black mb-2.5 ${isSelected ? 'opacity-100' : 'opacity-25'} ${isSun?'text-sun':isSat?'text-sat':''}`}>{['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()]}</span>
+                                                <span className={`text-[10px] font-black mb-2.5 ${isSelected ? 'opacity-100' : 'opacity-25'} ${isSun?'text-sun':d.getDay()===6?'text-sat':''}`}>{['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()]}</span>
                                                 <span className={`text-[13px] w-8 h-8 flex items-center justify-center rounded-full transition-all ${isSelected ? 'bg-[#1A1A1A] text-white font-bold' : isSun ? 'text-sun opacity-60' : 'text-slate-400'}`}>{d.getDate()}</span>
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <button onClick={() => moveWeek(1)} className="p-1.5 opacity-20 btn-press"><i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                                <button onClick={() => moveWeek(1)} className="p-1.5 opacity-20 btn-press"><Icon name="chevron-right" className="w-4 h-4" /></button>
                             </div>
                         )}
                     </header>
@@ -460,20 +527,27 @@
                     <main ref={mainScrollRef} className="no-scrollbar px-5">
                         {activeTab === 'Journal' && (
                             <div className="h-full flex flex-col fade-in pt-1">
+                                {currentDayTodos.length > 0 && (
+                                    <div className="mb-4 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase opacity-20 tracking-widest">Tasks for today</span>
+                                            <div className="h-[1px] flex-1 bg-black/5"></div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {currentDayTodos.map(todo => (
+                                                <button key={todo.id} onClick={() => { setHighlightedTodoId(todo.id); setActiveTab('Todo'); }} className={`px-3 py-1.5 rounded-full text-[11px] font-bold border flex items-center gap-2 transition-all btn-press ${todo.done ? 'bg-slate-50 border-slate-100 text-slate-300' : 'bg-white border-black/10 text-slate-600 shadow-sm'}`}>
+                                                    {todo.done ? <Icon name="check-circle-2" className="w-3 h-3" /> : <div className="w-2 h-2 rounded-full bg-blue-400"></div>}
+                                                    {todo.text}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center mb-4">
                                     <span className="text-[10px] font-black tracking-widest uppercase opacity-30">Record</span>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => {
-                                            const formattedText = getFormattedShareText();
-                                            if(!formattedText) return showToast('내용이 없습니다');
-                                            copyToClipboard(formattedText);
-                                        }} className="btn-copy btn-press">
-                                            <i data-lucide="copy" className="w-4 h-4"></i>
-                                        </button>
-                                        <button onClick={handleShare} className="btn-share btn-press">
-                                            <i data-lucide="message-circle" className="w-3.5 h-3.5"></i>
-                                            Share
-                                        </button>
+                                        <button onClick={() => { const t = getFormattedShareText(); if(t) copyToClipboard(t); }} className="btn-copy btn-press"><Icon name="copy" className="w-4 h-4" /></button>
+                                        <button onClick={handleShare} className="btn-share btn-press"><Icon name="message-circle" className="w-3.5 h-3.5" />Share</button>
                                     </div>
                                 </div>
                                 <textarea className="flex-1 bg-transparent border-none resize-none journal-textarea placeholder:opacity-10" placeholder="오늘은 어떤일이 있었나요?" value={journals[currentDate.toDateString()] || ''} onChange={(e) => setJournals({...journals, [currentDate.toDateString()]: e.target.value})} />
@@ -481,20 +555,82 @@
                         )}
 
                         {activeTab === 'Todo' && (
-                            <div className="fade-in space-y-3 pt-3">
-                                <div className="flex items-center gap-2 bg-[#F1F0EB] rounded-xl px-4 py-2">
-                                    <input className="flex-1 bg-transparent text-[14px]" placeholder="할 일 추가" value={newTodo} onChange={e => setNewTodo(e.target.value)} onKeyDown={e => e.key === 'Enter' && (()=>{if(!newTodo)return;setTodos([{id:Date.now(),text:newTodo,done:false},...todos]);setNewTodo('')})()} />
-                                    <button onClick={()=>{if(!newTodo)return;setTodos([{id:Date.now(),text:newTodo,done:false},...todos]);setNewTodo('')}} className="bg-[#1A1A1A] text-white p-1.5 rounded-lg"><i data-lucide="plus" className="w-3.5 h-3.5"></i></button>
-                                </div>
-                                {todos.map(t => (
-                                    <div key={t.id} className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-black/5">
-                                        <button onClick={() => setTodos(todos.map(item => item.id === t.id ? {...item, done: !item.done} : item))} className={`w-5 h-5 rounded-md border-2 ${t.done ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}>
-                                            {t.done && <i data-lucide="check" className="w-3 h-3 text-white m-auto"></i>}
-                                        </button>
-                                        <span className={`text-[14px] flex-1 ${t.done ? 'opacity-30 line-through' : ''}`}>{t.text}</span>
-                                        <button onClick={() => setTodos(todos.filter(item => item.id !== t.id))} className="opacity-10"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                            <div className="fade-in space-y-3 pt-3 pb-8">
+                                <div className="bg-[#F1F0EB] rounded-2xl p-4 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <input className="flex-1 bg-white rounded-xl px-4 py-3 text-[14px] font-medium shadow-sm" placeholder="할 일을 입력하세요" value={newTodo.text} onChange={e => setNewTodo({...newTodo, text: e.target.value})} onKeyDown={e => e.key === 'Enter' && addTodo()} />
+                                        <button onClick={addTodo} className="bg-[#1A1A1A] text-white p-3.5 rounded-xl shadow-lg btn-press"><Icon name="plus" className="w-4 h-4" /></button>
                                     </div>
-                                ))}
+                                    <div className="flex flex-col gap-2">
+                                        <button 
+                                            onClick={() => {
+                                                const d = newTodo.date ? new Date(newTodo.date) : new Date();
+                                                setViewMonth(d);
+                                                setCalendarMode('todo');
+                                                setShowCalendar(true);
+                                            }}
+                                            className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm w-full btn-press"
+                                        >
+                                            <div className="flex items-center">
+                                                <Icon name="calendar" className="w-3.5 h-3.5 opacity-20 mr-2" />
+                                                <span className="text-[13px] font-bold text-slate-600">
+                                                    {newTodo.date ? newTodo.date : '날짜 선택 (선택사항)'}
+                                                </span>
+                                            </div>
+                                            {newTodo.date && <button onClick={(e) => { e.stopPropagation(); setNewTodo({...newTodo, date: ''}); }} className="opacity-20"><Icon name="x" className="w-3 h-3" /></button>}
+                                        </button>
+                                        
+                                        {newTodo.date && (
+                                            <div className="flex flex-wrap gap-2 px-1">
+                                                {getHolidayName(newTodo.date) && (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-lg border border-red-100 text-[10px] font-bold animate-pulse">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                                                        {getHolidayName(newTodo.date)}
+                                                    </span>
+                                                )}
+                                                {new Date(newTodo.date).getDay() === 0 && <span className="px-3 py-1 bg-red-50 text-red-400 rounded-lg border border-red-100 text-[10px] font-bold">일요일</span>}
+                                                {new Date(newTodo.date).getDay() === 6 && <span className="px-3 py-1 bg-blue-50 text-blue-400 rounded-lg border border-blue-100 text-[10px] font-bold">토요일</span>}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 space-y-8">
+                                    <div className="space-y-3 pt-2">
+                                        <div className="flex items-center gap-2 px-1">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">해야 할 일 (기간 없음)</span>
+                                            <div className="h-[1px] flex-1 bg-slate-100" />
+                                        </div>
+                                        {organizedTodos.noDate.length > 0 ? (
+                                            organizedTodos.noDate.map(t => <TodoItem key={t.id} t={t} />)
+                                        ) : (
+                                            <p className="text-center py-8 text-[11px] font-bold text-slate-300 uppercase tracking-widest">No pending tasks</p>
+                                        )}
+                                    </div>
+
+                                    {organizedTodos.sortedDates.map(date => {
+                                        const hName = getHolidayName(date);
+                                        const dObj = new Date(date);
+                                        const isSun = dObj.getDay() === 0;
+                                        const isSat = dObj.getDay() === 6;
+                                        return (
+                                            <div key={date} className="space-y-3">
+                                                <div className="flex items-center gap-2 px-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${(hName || isSun) ? 'text-sun' : isSat ? 'text-sat' : 'text-blue-500'}`}>{date}</span>
+                                                        {hName && (
+                                                            <span className="text-[9px] font-bold text-red-400 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                                                                {hName}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className={`h-[1px] flex-1 ${(hName || isSun) ? 'bg-red-100' : isSat ? 'bg-blue-100' : 'bg-blue-100'}`} />
+                                                </div>
+                                                {organizedTodos.groups[date].map(t => <TodoItem key={t.id} t={t} />)}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
 
@@ -503,9 +639,7 @@
                                 <div className={`p-3 rounded-2xl space-y-3 transition-colors ${newMemo.id ? 'bg-blue-50 border border-blue-100' : 'bg-[#F1F0EB]'}`}>
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-[10px] font-black uppercase opacity-40">{newMemo.id ? 'Edit Mode' : 'New Memo'}</span>
-                                        {newMemo.id && (
-                                            <button onClick={() => setNewMemo({content:'', tag:'', id: null})} className="text-[9px] font-bold text-blue-500 underline uppercase">Cancel Edit</button>
-                                        )}
+                                        {newMemo.id && <button onClick={() => setNewMemo({content:'', tag:'', id: null})} className="text-[9px] font-bold text-blue-500 underline uppercase">Cancel</button>}
                                     </div>
                                     <div className="space-y-2">
                                         <input className="w-full bg-white px-3 py-2 rounded-lg text-xs font-bold" placeholder="#태그 (선택)" value={newMemo.tag} onChange={e=>setNewMemo({...newMemo, tag: e.target.value})} />
@@ -517,42 +651,20 @@
                                             </div>
                                         )}
                                     </div>
-                                    <textarea 
-                                        ref={memoTextareaRef}
-                                        className="w-full bg-transparent p-1 text-[13px] min-h-[60px] resize-none border-none memo-content memo-textarea-expandable" 
-                                        placeholder="여기에 메모하세요..." 
-                                        value={newMemo.content} 
-                                        onChange={e=>setNewMemo({...newMemo, content: e.target.value})} 
-                                    />
-                                    <button onClick={saveMemo} className={`w-full text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${newMemo.id ? 'bg-blue-600 shadow-lg' : 'bg-[#1A1A1A]'}`}>
-                                        {newMemo.id ? 'Update Memo' : 'Add Memo'}
-                                    </button>
+                                    <textarea ref={memoTextareaRef} className="w-full bg-transparent p-1 text-[13px] min-h-[60px] resize-none border-none" placeholder="여기에 메모하세요..." value={newMemo.content} onChange={e=>setNewMemo({...newMemo, content: e.target.value})} />
+                                    <button onClick={saveMemo} className={`w-full text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${newMemo.id ? 'bg-blue-600 shadow-lg' : 'bg-[#1A1A1A]'}`}>{newMemo.id ? 'Update Memo' : 'Add Memo'}</button>
                                 </div>
-
                                 <div className="space-y-8">
                                     {Object.entries(groupedMemos.groups).map(([tagName, items]) => (
                                         <div key={tagName} className="space-y-3">
-                                            <div className="flex items-center gap-2 px-1">
-                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">#{tagName}</span>
-                                                <div className="h-[1px] flex-1 bg-blue-100" />
-                                            </div>
-                                            {items.map(m => (
-                                                <MemoCard key={m.id} m={m} />
-                                            ))}
+                                            <div className="flex items-center gap-2 px-1"><span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">#{tagName}</span><div className="h-[1px] flex-1 bg-blue-100" /></div>
+                                            {items.map(m => <MemoCard key={m.id} m={m} />)}
                                         </div>
                                     ))}
-
                                     {groupedMemos.noTag.length > 0 && (
                                         <div className="space-y-3">
-                                            {Object.keys(groupedMemos.groups).length > 0 && (
-                                                <div className="flex items-center gap-2 px-1">
-                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Others</span>
-                                                    <div className="h-[1px] flex-1 bg-slate-100" />
-                                                </div>
-                                            )}
-                                            {groupedMemos.noTag.map(m => (
-                                                <MemoCard key={m.id} m={m} />
-                                            ))}
+                                            {Object.keys(groupedMemos.groups).length > 0 && <div className="flex items-center gap-2 px-1"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Others</span><div className="h-[1px] flex-1 bg-slate-100" /></div>}
+                                            {groupedMemos.noTag.map(m => <MemoCard key={m.id} m={m} />)}
                                         </div>
                                     )}
                                 </div>
@@ -563,37 +675,33 @@
                             <div className="fade-in pt-3 pb-8">
                                 <div className="relative mb-6">
                                     <input className="w-full bg-[#F1F0EB] rounded-2xl pl-12 pr-5 py-4 text-[15px] font-bold" placeholder="검색어를 입력하세요" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                                    <i data-lucide="search" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-20"></i>
+                                    <Icon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-20" />
                                 </div>
                                 <div className="space-y-4">
-                                    {filteredResults().length > 0 ? (
-                                        filteredResults().map((item, idx) => (
-                                            <div key={idx} className="bg-white p-4 rounded-2xl border border-black/5 btn-press" onClick={() => {
-                                                if(item.type === 'Journal') {
-                                                    setCurrentDate(new Date(item.date));
-                                                    setActiveTab('Journal');
-                                                } else if (item.type === 'Memo') {
-                                                    setHighlightedMemoId(item.id);
-                                                    setExpandedMemoIds(prev => new Set(prev).add(item.id));
-                                                    setActiveTab('Memo');
-                                                } else if (item.type === 'Todo') {
-                                                    setActiveTab('Todo');
-                                                }
-                                            }}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.type === 'Journal' ? 'bg-blue-50 text-blue-500' : item.type === 'Memo' ? 'bg-orange-50 text-orange-500' : 'bg-green-50 text-green-500'}`}>{item.type}</span>
-                                                    {item.date && <span className="text-[9px] font-black opacity-20">{item.date}</span>}
-                                                </div>
-                                                <p className="text-[13px] opacity-70 line-clamp-2">{item.text}</p>
-                                                {item.tag && <span className="text-[9px] font-bold text-blue-400 mt-2 block">#{item.tag}</span>}
+                                    {filteredResults().map((item, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-2xl border border-black/5 btn-press" onClick={() => {
+                                            if(item.type === 'Journal') { setCurrentDate(new Date(item.date)); setActiveTab('Journal'); }
+                                            else if (item.type === 'Memo') { 
+                                                setHighlightedMemoId(item.id); 
+                                                setExpandedMemoIds(prev => new Set(prev).add(item.id)); 
+                                                setActiveTab('Memo'); 
+                                            }
+                                            else {
+                                                setHighlightedTodoId(item.id);
+                                                setActiveTab('Todo');
+                                            }
+                                        }}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.type === 'Journal' ? 'bg-blue-50 text-blue-500' : item.type === 'Memo' ? 'bg-orange-50 text-orange-500' : 'bg-green-50 text-green-500'}`}>{item.type}</span>
+                                                {item.date && (
+                                                    <span className="text-[9px] font-black opacity-30 flex items-center gap-1">
+                                                        <Icon name="calendar" className="w-2.5 h-2.5" />{item.date}
+                                                    </span>
+                                                )}
                                             </div>
-                                        ))
-                                    ) : searchQuery && (
-                                        <div className="text-center py-20 opacity-20">
-                                            <i data-lucide="alert-circle" className="w-12 h-12 mx-auto mb-3"></i>
-                                            <p className="text-xs font-black uppercase">No results found</p>
+                                            <p className="text-[13px] opacity-70 line-clamp-2">{item.text}</p>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -602,37 +710,23 @@
                             <div className="fade-in space-y-4 pt-3">
                                 <div className="bg-white p-6 rounded-2xl border border-black/5 space-y-6">
                                     <div>
-                                        <h3 className="text-[11px] font-black opacity-30 uppercase tracking-widest mb-4">Cloud & Backup</h3>
+                                        <h3 className="text-[11px] font-black opacity-30 uppercase tracking-widest mb-4">Storage</h3>
                                         <div className="space-y-3">
-                                            <button onClick={() => handleExport(false)} className="w-full flex items-center justify-between px-5 py-4 bg-[#F1F0EB] text-[#1A1A1A] rounded-xl btn-press">
-                                                <div className="text-left">
-                                                    <div className="text-[11px] font-black uppercase">Export</div>
-                                                    <div className="text-[9px] opacity-40 font-bold">전체 내용 내보내기</div>
-                                                </div>
-                                                <i data-lucide="download" className="w-5 h-5 opacity-40"></i>
+                                            <button onClick={handleExport} className="w-full flex items-center justify-between px-5 py-4 bg-[#F1F0EB] text-[#1A1A1A] rounded-xl btn-press">
+                                                <div className="text-left"><div className="text-[11px] font-black uppercase">Export</div><div className="text-[9px] opacity-40 font-bold">백업 파일 만들기</div></div>
+                                                <Icon name="download" className="w-5 h-5 opacity-40" />
                                             </button>
-                                            <button onClick={() => fileInputRef.current.click()} className="w-full flex items-center justify-between px-5 py-4 border-2 border-[#1A1A1A] text-[#1A1A1A] rounded-xl btn-press">
-                                                <div className="text-left">
-                                                    <div className="text-[11px] font-black uppercase">Import</div>
-                                                    <div className="text-[9px] opacity-40 font-bold">파일에서 불러오기</div>
-                                                </div>
-                                                <i data-lucide="upload" className="w-5 h-5 opacity-40"></i>
+                                            <button onClick={() => fileInputRef.current.click()} className="w-full flex items-center justify-between px-5 py-4 border-2 border-[#1A1A1A] rounded-xl btn-press">
+                                                <div className="text-left"><div className="text-[11px] font-black uppercase">Import</div><div className="text-[9px] opacity-40 font-bold">백업 불러오기</div></div>
+                                                <Icon name="upload" className="w-5 h-5 opacity-40" />
                                             </button>
                                             <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
                                         </div>
                                     </div>
-                                    <div className="pt-2">
-                                        <h3 className="text-[11px] font-black opacity-30 uppercase tracking-widest mb-4">App Info</h3>
-                                        <div className="space-y-3 px-1">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-[10px] font-bold opacity-30">App Name</span>
-                                                <span className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-tighter">{APP_NAME}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-[10px] font-bold opacity-30">Version</span>
-                                                <span className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-tighter">{APP_VERSION}</span>
-                                            </div>
-                                        </div>
+                                    {/* Bong's Diary Logo - 진하게 수정됨 */}
+                                    <div className="text-center py-6 border-t border-slate-50 opacity-40">
+                                        <div className="cursive-title text-xl mb-1">{APP_NAME}</div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest">{APP_VERSION}</p>
                                     </div>
                                 </div>
                             </div>
@@ -647,8 +741,8 @@
                             { id: 'Search', icon: 'search' },
                             { id: 'Setting', icon: 'settings' }
                         ].map(tab => (
-                            <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex flex-col items-center flex-1 transition-all ${activeTab === tab.id ? 'opacity-100' : 'opacity-20'}`}>
-                                <i data-lucide={tab.icon} className="w-[18px] h-[18px]" style={{strokeWidth: 2.5}}></i>
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center flex-1 transition-all ${activeTab === tab.id ? 'opacity-100' : 'opacity-20'}`}>
+                                <Icon name={tab.icon} className="w-[18px] h-[18px]" />
                                 <span className="text-[9px] font-black mt-1.5 tracking-tighter uppercase">{tab.id}</span>
                             </button>
                         ))}
@@ -657,13 +751,10 @@
                     {showCalendar && (
                         <div className="absolute inset-0 z-[1100] bg-[#FDFCF8] flex flex-col p-8 fade-in" onClick={() => setShowCalendar(false)}>
                             <div className="flex justify-between items-end mb-12" onClick={e=>e.stopPropagation()}>
-                                <div>
-                                    <span className="text-sm font-black opacity-30 block mb-1">{viewMonth.getFullYear()}</span>
-                                    <span className="calendar-month-title">{viewMonth.getMonth()+1}월</span>
-                                </div>
+                                <div><span className="text-sm font-black opacity-30 block mb-1">{viewMonth.getFullYear()}</span><span className="calendar-month-title">{viewMonth.getMonth()+1}월</span></div>
                                 <div className="flex gap-3 mb-2">
-                                    <button onClick={()=>setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth()-1, 1))} className="p-3 bg-[#F1F0EB] rounded-2xl"><i data-lucide="chevron-left" className="w-6 h-6"></i></button>
-                                    <button onClick={()=>setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 1))} className="p-3 bg-[#F1F0EB] rounded-2xl"><i data-lucide="chevron-right" className="w-6 h-6"></i></button>
+                                    <button onClick={()=>setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth()-1, 1))} className="p-3 bg-[#F1F0EB] rounded-2xl btn-press"><Icon name="chevron-left" className="w-6 h-6" /></button>
+                                    <button onClick={()=>setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 1))} className="p-3 bg-[#F1F0EB] rounded-2xl btn-press"><Icon name="chevron-right" className="w-6 h-6" /></button>
                                 </div>
                             </div>
                             <div className="grid grid-cols-7 gap-y-4 text-center overflow-y-auto no-scrollbar" onClick={e=>e.stopPropagation()}>
@@ -671,19 +762,34 @@
                                 {Array.from({length: new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1).getDay()}).map((_,i)=><div key={i}/>)}
                                 {Array.from({length: new Date(viewMonth.getFullYear(), viewMonth.getMonth()+1, 0).getDate()}).map((_,i)=>{
                                     const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), i+1);
-                                    const isSelected = d.toDateString() === currentDate.toDateString();
+                                    let isSelected = false;
+                                    const todayStr = toLocalDateString(new Date());
+
+                                    if (calendarMode === 'select') {
+                                        isSelected = d.toDateString() === currentDate.toDateString();
+                                    } else {
+                                        const currentNewTodoDate = newTodo.date || todayStr;
+                                        isSelected = toLocalDateString(d) === currentNewTodoDate;
+                                    }
+
                                     const hDay = getHolidayName(d);
-                                    const isSun = d.getDay() === 0 || hDay;
-                                    const isSat = d.getDay() === 6;
                                     return (
-                                        <button key={i} onClick={()=>{setCurrentDate(d);setShowCalendar(false)}} className={`relative flex flex-col items-center py-4 transition-all ${isSelected ? 'bg-[#1A1A1A] text-white rounded-2xl shadow-xl' : ''}`}>
-                                            <span className={`text-[17px] font-black ${!isSelected && isSun ? 'text-sun' : !isSelected && isSat ? 'text-sat' : ''}`}>{i+1}</span>
-                                            {journals[d.toDateString()] && !isSelected && <div className="calendar-dot" />}
+                                        <button key={i} onClick={()=>{
+                                            if (calendarMode === 'select') {
+                                                setCurrentDate(d);
+                                            } else {
+                                                setNewTodo({...newTodo, date: toLocalDateString(d)});
+                                            }
+                                            setShowCalendar(false);
+                                        }} className={`relative flex flex-col items-center py-4 transition-all ${isSelected ? 'bg-[#1A1A1A] text-white rounded-2xl shadow-xl' : ''}`}>
+                                            <span className={`text-[17px] font-black ${!isSelected && (d.getDay()===0||hDay) ? 'text-sun' : !isSelected && d.getDay()===6 ? 'text-sat' : ''}`}>{i+1}</span>
+                                            {(journals[d.toDateString()] || todos.some(t => t.date === toLocalDateString(d))) && !isSelected && <div className="calendar-dot" />}
                                             {hDay && <div className="text-[7px] font-black absolute bottom-1 truncate w-full px-1 text-center" style={{color: isSelected ? 'white' : 'var(--weekend-sun)'}}>{hDay}</div>}
                                         </button>
                                     )
                                 })}
                             </div>
+                            <button onClick={() => setShowCalendar(false)} className="mt-auto py-5 text-[11px] font-black uppercase tracking-widest opacity-20">Close</button>
                         </div>
                     )}
                 </div>
