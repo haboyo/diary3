@@ -89,6 +89,25 @@
         .memo-content {
             line-height: 1.4 !important;
         }
+
+        /* 메모 목록 요약 스타일 */
+        .line-clamp-2-custom {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .memo-card-expanded {
+            border-color: rgba(59, 130, 246, 0.3) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        /* 메모 입력창 확장 스타일 */
+        .memo-textarea-expandable {
+            transition: min-height 0.2s ease-in-out;
+            overflow-y: hidden;
+        }
         
         .fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -126,20 +145,11 @@
 
         const KOREAN_HOLIDAYS = {
             "2025": {"01-01":"신정","01-28":"설날","01-27":"설날연휴","01-29":"설날연휴","01-30":"대체공휴일","03-01":"삼일절","03-03":"대체공휴일","05-05":"어린이날","05-06":"대체공휴일","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-06":"추석","10-05":"추석연휴","10-07":"추석연휴","10-08":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
-            "2026": {"01-01":"신정","02-17":"설날","02-16":"설날연휴","02-18":"설날연휴","03-01":"삼일절","03-02":"대체공휴일","05-05":"어린이날","05-24":"석가탄신일","05-25":"대체공휴일","06-06":"현충일","08-15":"광복절","08-17":"대체공휴일","09-25":"추석","09-24":"추석연휴","09-26":"추석연휴","10-03":"개천절","10-05":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
-            "2027": {"01-01":"신정","02-06":"설날","02-05":"설날연휴","02-07":"설날연휴","02-08":"대체공휴일","03-01":"삼일절","05-05":"어린이날","05-13":"석가탄신일","06-06":"현충일","06-07":"대체공휴일","08-15":"광복절","08-16":"대체공휴일","09-15":"추석","09-14":"추석연휴","09-16":"추석연휴","10-03":"개천절","10-04":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
-            "2028": {"01-01":"신정","01-27":"설날","01-26":"설날연휴","01-28":"설날연휴","03-01":"삼일절","05-02":"석가탄신일","05-05":"어린이날","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-02":"대체공휴일","10-03":"추석","10-04":"추석연휴","10-05":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
-            "2029": {"01-01":"신정","02-13":"설날","02-12":"설날연휴","02-14":"설날연휴","03-01":"삼일절","05-05":"어린이날","05-07":"대체공휴일","05-20":"석가탄신일","05-21":"대체공휴일","06-06":"현충일","08-15":"광복절","09-22":"추석","09-21":"추석연휴","09-23":"추석연휴","09-24":"대체공휴일","10-03":"개천절","10-09":"한글날","12-25":"성탄절"},
-            "2030": {"01-01":"신정","02-03":"설날","02-02":"설날연휴","02-04":"설날연휴","03-01":"삼일절","05-05":"어린이날","05-06":"대체공휴일","05-09":"석가탄신일","06-06":"현충일","08-15":"광복절","09-12":"추석","09-11":"추석연휴","09-13":"추석연휴","10-03":"개천절","10-09":"한글날","12-25":"성탄절"},
-            "2031": {"01-01":"신정","01-23":"설날","01-22":"설날연휴","01-24":"설날연휴","03-01":"삼일절","03-03":"대체공휴일","05-05":"어린이날","05-28":"석가탄신일","06-06":"현충일","08-15":"광복절","10-01":"추석","09-30":"추석연휴","10-02":"추석연휴","10-03":"개천절","10-09":"한글날","12-25":"성탄절"},
-            "2032": {"01-01":"신정","02-11":"설날","02-10":"설날연휴","02-12":"설날연휴","03-01":"삼일절","05-05":"어린이날","05-16":"석가탄신일","05-17":"대체공휴일","06-06":"현충일","08-15":"광복절","08-16":"대체공휴일","09-19":"추석","09-18":"추석연휴","09-20":"추석연휴","09-21":"대체공휴일","10-03":"개천절","10-04":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
-            "2033": {"01-01":"신정","01-31":"설날","01-30":"설날연휴","02-01":"설날연휴","02-02":"대체공휴일","03-01":"삼일절","05-05":"어린이날","05-06":"석가탄신일","06-06":"현충일","08-15":"광복절","09-08":"추석","09-07":"추석연휴","09-09":"추석연휴","10-03":"개천절","10-09":"한글날","10-10":"대체공휴일","12-25":"성탄절","12-26":"대체공휴일"},
-            "2034": {"01-01":"신정","02-19":"설날","02-18":"설날연휴","02-20":"설날연휴","03-01":"삼일절","05-05":"어린이날","05-25":"석가탄신일","06-06":"현충일","08-15":"광복절","09-27":"추석","09-26":"추석연휴","09-28":"추석연휴","10-03":"개천절","10-09":"한글날","12-25":"성탄절"},
-            "2035": {"01-01":"신정","02-08":"설날","02-07":"설날연휴","02-09":"설날연휴","02-10":"대체공휴일","03-01":"삼일절","05-05":"어린이날","05-15":"석가탄신일","06-06":"현충일","08-15":"광복절","09-16":"추석","09-15":"추석연휴","09-17":"추석연휴","10-03":"개천절","10-09":"한글날","12-25":"성탄절"}
+            "2026": {"01-01":"신정","02-17":"설날","02-16":"설날연휴","02-18":"설날연휴","03-01":"삼일절","03-02":"대체공휴일","05-05":"어린이날","05-24":"석가탄신일","05-25":"대체공휴일","06-06":"현충일","08-15":"광복절","08-17":"대체공휴일","09-25":"추석","09-24":"추석연휴","09-26":"추석연휴","10-03":"개천절","10-05":"대체공휴일","10-09":"한글날","12-25":"성탄절"}
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.3';
+        const APP_VERSION = 'v3.5.5';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -149,6 +159,9 @@
             const [showCalendar, setShowCalendar] = useState(false);
             const [message, setMessage] = useState('');
             
+            // 확장된 메모의 ID를 저장하는 상태
+            const [expandedMemoIds, setExpandedMemoIds] = useState(new Set());
+            
             const [weekAnchor, setWeekAnchor] = useState(() => {
                 const d = new Date();
                 d.setDate(d.getDate() - d.getDay());
@@ -156,13 +169,14 @@
             });
             
             const fileInputRef = useRef(null);
+            const memoTextareaRef = useRef(null);
             
             const [journals, setJournals] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_journals`) || '{}'));
             const [memos, setMemos] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_memos`) || '[]'));
             const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_todos`) || '[]'));
 
             const [newTodo, setNewTodo] = useState('');
-            const [newMemo, setNewMemo] = useState({ content: '', tag: '', id: null }); // id 추가 (수정용)
+            const [newMemo, setNewMemo] = useState({ content: '', tag: '', id: null });
             const [searchQuery, setSearchQuery] = useState('');
 
             useEffect(() => {
@@ -171,7 +185,6 @@
                 localStorage.setItem(`${STORAGE_KEY}_todos`, JSON.stringify(todos));
             }, [journals, memos, todos]);
 
-            // [자동 백업 로직] 정오(12:00)와 자정(00:00)에 실행
             useEffect(() => {
                 const checkAutoBackup = () => {
                     const now = new Date();
@@ -189,6 +202,14 @@
                 const interval = setInterval(checkAutoBackup, 60000); 
                 return () => clearInterval(interval);
             }, [journals, memos, todos]);
+
+            useEffect(() => {
+                if (memoTextareaRef.current && activeTab === 'Memo') {
+                    memoTextareaRef.current.style.height = 'auto';
+                    const scrollHeight = memoTextareaRef.current.scrollHeight;
+                    memoTextareaRef.current.style.height = `${Math.max(60, scrollHeight)}px`;
+                }
+            }, [newMemo.content, activeTab]);
 
             useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
 
@@ -316,25 +337,61 @@
                 e.target.value = null;
             };
 
-            // 메모 작성/수정 핸들러
             const saveMemo = () => {
                 if(!newMemo.content.trim()) return;
                 
                 if (newMemo.id) {
-                    // 수정 모드
                     setMemos(memos.map(m => m.id === newMemo.id ? { ...m, content: newMemo.content, tag: newMemo.tag } : m));
                     showToast('메모 수정됨');
                 } else {
-                    // 신규 모드
                     setMemos([{id:Date.now(), content:newMemo.content, tag:newMemo.tag, date:new Date().toLocaleDateString()}, ...memos]);
                     showToast('메모 추가됨');
                 }
                 setNewMemo({content:'', tag:'', id: null});
             };
 
-            const startEditMemo = (memo) => {
+            const startEditMemo = (e, memo) => {
+                e.stopPropagation(); // 카드 클릭(확장) 방지
                 setNewMemo({ content: memo.content, tag: memo.tag || '', id: memo.id });
-                window.scrollTo({ top: 0, behavior: 'smooth' }); // 입력창으로 스크롤
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const toggleMemoExpand = (memoId) => {
+                setExpandedMemoIds(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(memoId)) {
+                        newSet.delete(memoId);
+                    } else {
+                        newSet.add(memoId);
+                    }
+                    return newSet;
+                });
+            };
+
+            const MemoCard = ({ m }) => {
+                const isExpanded = expandedMemoIds.has(m.id);
+                return (
+                    <div 
+                        onClick={() => toggleMemoExpand(m.id)}
+                        className={`bg-white p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${isExpanded ? 'memo-card-expanded border-blue-200' : 'border-black/5'}`}
+                    >
+                        <p className={`text-[14px] opacity-80 whitespace-pre-wrap memo-content ${!isExpanded ? 'line-clamp-2-custom' : ''}`}>
+                            {m.content}
+                        </p>
+                        <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
+                            <div className="flex items-center gap-3">
+                                <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(m.content); }} className="text-[#1A1A1A] opacity-20 btn-press">
+                                    <i data-lucide="copy" className="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onClick={(e) => startEditMemo(e, m)} className="text-[#1A1A1A] opacity-20 btn-press">
+                                    <i data-lucide="edit-3" className="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                            <button onClick={(e)=>{ e.stopPropagation(); setMemos(memos.filter(item=>item.id!==m.id)); }} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                );
             };
 
             return (
@@ -451,7 +508,13 @@
                                             </div>
                                         )}
                                     </div>
-                                    <textarea className="w-full bg-transparent p-1 text-[13px] min-h-[60px] resize-none border-none memo-content" placeholder="여기에 메모하세요..." value={newMemo.content} onChange={e=>setNewMemo({...newMemo, content: e.target.value})} />
+                                    <textarea 
+                                        ref={memoTextareaRef}
+                                        className="w-full bg-transparent p-1 text-[13px] min-h-[60px] resize-none border-none memo-content memo-textarea-expandable" 
+                                        placeholder="여기에 메모하세요..." 
+                                        value={newMemo.content} 
+                                        onChange={e=>setNewMemo({...newMemo, content: e.target.value})} 
+                                    />
                                     <button onClick={saveMemo} className={`w-full text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${newMemo.id ? 'bg-blue-600 shadow-lg' : 'bg-[#1A1A1A]'}`}>
                                         {newMemo.id ? 'Update Memo' : 'Add Memo'}
                                     </button>
@@ -465,21 +528,7 @@
                                                 <div className="h-[1px] flex-1 bg-blue-100" />
                                             </div>
                                             {items.map(m => (
-                                                <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
-                                                    <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
-                                                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-[8px] font-black opacity-20">{m.date}</span>
-                                                            <button onClick={() => copyToClipboard(m.content)} className="text-[#1A1A1A] opacity-20 btn-press">
-                                                                <i data-lucide="copy" className="w-3.5 h-3.5"></i>
-                                                            </button>
-                                                            <button onClick={() => startEditMemo(m)} className="text-[#1A1A1A] opacity-20 btn-press">
-                                                                <i data-lucide="edit-3" className="w-3.5 h-3.5"></i>
-                                                            </button>
-                                                        </div>
-                                                        <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
-                                                    </div>
-                                                </div>
+                                                <MemoCard key={m.id} m={m} />
                                             ))}
                                         </div>
                                     ))}
@@ -493,21 +542,7 @@
                                                 </div>
                                             )}
                                             {groupedMemos.noTag.map(m => (
-                                                <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
-                                                    <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
-                                                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-[8px] font-black opacity-20">{m.date}</span>
-                                                            <button onClick={() => copyToClipboard(m.content)} className="text-[#1A1A1A] opacity-20 btn-press">
-                                                                <i data-lucide="copy" className="w-3.5 h-3.5"></i>
-                                                            </button>
-                                                            <button onClick={() => startEditMemo(m)} className="text-[#1A1A1A] opacity-20 btn-press">
-                                                                <i data-lucide="edit-3" className="w-3.5 h-3.5"></i>
-                                                            </button>
-                                                        </div>
-                                                        <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
-                                                    </div>
-                                                </div>
+                                                <MemoCard key={m.id} m={m} />
                                             ))}
                                         </div>
                                     )}
