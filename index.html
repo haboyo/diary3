@@ -98,10 +98,10 @@
         }
 
         /* 메모 카드 확장 및 강조 애니메이션 */
-        .memo-card-expanded {
+        .memo-card-highlighted {
             border-color: #3b82f6 !important;
             border-width: 2px !important;
-            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 8px 10px -6px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1);
             transform: scale(1.01);
             z-index: 5;
         }
@@ -151,7 +151,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.7';
+        const APP_VERSION = 'v3.5.8';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -163,7 +163,7 @@
             
             // 확장된 메모 ID들을 추적하는 Set
             const [expandedMemoIds, setExpandedMemoIds] = useState(new Set());
-            // 검색에서 선택되어 강조된 메모 ID
+            // 현재 강조(테두리 색상)된 단일 메모 ID
             const [highlightedMemoId, setHighlightedMemoId] = useState(null);
             
             const [weekAnchor, setWeekAnchor] = useState(() => {
@@ -206,7 +206,7 @@
                 setWeekAnchor(d);
             }, [currentDate]);
 
-            // 메모 탭으로 이동 시 강조된 메모가 있다면 스크롤 이동
+            // 메모 탭 이동 시 강조된 메모 스크롤 포커싱
             useEffect(() => {
                 if (activeTab === 'Memo' && highlightedMemoId) {
                     setTimeout(() => {
@@ -356,12 +356,16 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
-            const toggleMemoExpand = (memoId) => {
+            // 메모 선택 및 토글 핸들러
+            const handleMemoSelect = (memoId) => {
+                // 강조 상태 업데이트: 같은 메모면 토글(끄기), 아니면 새 메모 강조
+                setHighlightedMemoId(prevId => prevId === memoId ? null : memoId);
+                
+                // 확장 상태 업데이트
                 setExpandedMemoIds(prev => {
                     const newSet = new Set(prev);
                     if (newSet.has(memoId)) {
                         newSet.delete(memoId);
-                        if (highlightedMemoId === memoId) setHighlightedMemoId(null);
                     } else {
                         newSet.add(memoId);
                     }
@@ -376,8 +380,8 @@
                 return (
                     <div 
                         id={`memo-${m.id}`}
-                        onClick={() => toggleMemoExpand(m.id)}
-                        className={`bg-white p-5 rounded-2xl border transition-all duration-300 cursor-pointer ${isExpanded ? 'memo-card-expanded' : 'border-black/5'} ${isHighlighted ? 'ring-4 ring-blue-100' : ''}`}
+                        onClick={() => handleMemoSelect(m.id)}
+                        className={`bg-white p-5 rounded-2xl border transition-all duration-300 cursor-pointer ${isHighlighted ? 'memo-card-highlighted' : 'border-black/5'}`}
                     >
                         <p className={`text-[14px] opacity-80 whitespace-pre-wrap memo-content transition-all ${!isExpanded ? 'line-clamp-2-custom' : ''}`}>
                             {m.content}
@@ -399,7 +403,7 @@
             };
 
             const handleTabChange = (tabId) => {
-                // 검색 탭을 다시 누르면 모든 메모 요약 상태로 복구
+                // 검색 탭 진입 시 강조 및 확장 상태 리셋
                 if (tabId === 'Search') {
                     setExpandedMemoIds(new Set());
                     setHighlightedMemoId(null);
@@ -578,9 +582,9 @@
                                                     setCurrentDate(new Date(item.date));
                                                     setActiveTab('Journal');
                                                 } else if (item.type === 'Memo') {
-                                                    // 메모 클릭 시: 확장 ID 추가 및 강조 ID 설정
-                                                    setExpandedMemoIds(prev => new Set(prev).add(item.id));
+                                                    // 검색 결과 클릭 시: 강조 메모 설정 및 확장 상태 추가
                                                     setHighlightedMemoId(item.id);
+                                                    setExpandedMemoIds(prev => new Set(prev).add(item.id));
                                                     setActiveTab('Memo');
                                                 } else if (item.type === 'Todo') {
                                                     setActiveTab('Todo');
