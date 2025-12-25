@@ -90,7 +90,6 @@
             line-height: 1.4 !important;
         }
 
-        /* 메모 목록 요약 스타일 */
         .line-clamp-2-custom {
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -103,7 +102,6 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
-        /* 메모 입력창 확장 스타일 */
         .memo-textarea-expandable {
             transition: min-height 0.2s ease-in-out;
             overflow-y: hidden;
@@ -149,7 +147,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.5';
+        const APP_VERSION = 'v3.5.6';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -159,7 +157,6 @@
             const [showCalendar, setShowCalendar] = useState(false);
             const [message, setMessage] = useState('');
             
-            // 확장된 메모의 ID를 저장하는 상태
             const [expandedMemoIds, setExpandedMemoIds] = useState(new Set());
             
             const [weekAnchor, setWeekAnchor] = useState(() => {
@@ -198,7 +195,6 @@
                         localStorage.setItem(`${STORAGE_KEY}_last_auto_backup`, currentBackupKey);
                     }
                 };
-
                 const interval = setInterval(checkAutoBackup, 60000); 
                 return () => clearInterval(interval);
             }, [journals, memos, todos]);
@@ -339,7 +335,6 @@
 
             const saveMemo = () => {
                 if(!newMemo.content.trim()) return;
-                
                 if (newMemo.id) {
                     setMemos(memos.map(m => m.id === newMemo.id ? { ...m, content: newMemo.content, tag: newMemo.tag } : m));
                     showToast('메모 수정됨');
@@ -351,7 +346,7 @@
             };
 
             const startEditMemo = (e, memo) => {
-                e.stopPropagation(); // 카드 클릭(확장) 방지
+                e.stopPropagation();
                 setNewMemo({ content: memo.content, tag: memo.tag || '', id: memo.id });
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
@@ -359,11 +354,8 @@
             const toggleMemoExpand = (memoId) => {
                 setExpandedMemoIds(prev => {
                     const newSet = new Set(prev);
-                    if (newSet.has(memoId)) {
-                        newSet.delete(memoId);
-                    } else {
-                        newSet.add(memoId);
-                    }
+                    if (newSet.has(memoId)) newSet.delete(memoId);
+                    else newSet.add(memoId);
                     return newSet;
                 });
             };
@@ -372,6 +364,7 @@
                 const isExpanded = expandedMemoIds.has(m.id);
                 return (
                     <div 
+                        id={`memo-${m.id}`}
                         onClick={() => toggleMemoExpand(m.id)}
                         className={`bg-white p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${isExpanded ? 'memo-card-expanded border-blue-200' : 'border-black/5'}`}
                     >
@@ -564,10 +557,13 @@
                                                     setCurrentDate(new Date(item.date));
                                                     setActiveTab('Journal');
                                                 } else if (item.type === 'Memo') {
+                                                    // 메모 클릭 시: 탭 이동 + 확장 ID 추가
+                                                    setExpandedMemoIds(prev => new Set(prev).add(item.id));
                                                     setActiveTab('Memo');
                                                 } else if (item.type === 'Todo') {
                                                     setActiveTab('Todo');
                                                 }
+                                                setSearchQuery('');
                                             }}>
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.type === 'Journal' ? 'bg-blue-50 text-blue-500' : item.type === 'Memo' ? 'bg-orange-50 text-orange-500' : 'bg-green-50 text-green-500'}`}>{item.type}</span>
