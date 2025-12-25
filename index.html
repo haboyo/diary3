@@ -124,7 +124,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // 대한민국 공휴일 데이터 (2025-2035)
         const KOREAN_HOLIDAYS = {
             "2025": {"01-01":"신정","01-28":"설날","01-27":"설날연휴","01-29":"설날연휴","01-30":"대체공휴일","03-01":"삼일절","03-03":"대체공휴일","05-05":"어린이날","05-06":"대체공휴일","06-06":"현충일","08-15":"광복절","10-03":"개천절","10-06":"추석","10-05":"추석연휴","10-07":"추석연휴","10-08":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
             "2026": {"01-01":"신정","02-17":"설날","02-16":"설날연휴","02-18":"설날연휴","03-01":"삼일절","03-02":"대체공휴일","05-05":"어린이날","05-24":"석가탄신일","05-25":"대체공휴일","06-06":"현충일","08-15":"광복절","08-17":"대체공휴일","09-25":"추석","09-24":"추석연휴","09-26":"추석연휴","10-03":"개천절","10-05":"대체공휴일","10-09":"한글날","12-25":"성탄절"},
@@ -140,7 +139,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.1';
+        const APP_VERSION = 'v3.5.2';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -170,6 +169,25 @@
                 localStorage.setItem(`${STORAGE_KEY}_journals`, JSON.stringify(journals));
                 localStorage.setItem(`${STORAGE_KEY}_memos`, JSON.stringify(memos));
                 localStorage.setItem(`${STORAGE_KEY}_todos`, JSON.stringify(todos));
+            }, [journals, memos, todos]);
+
+            // [자동 백업 로직] 정오(12:00)와 자정(00:00)에 실행
+            useEffect(() => {
+                const checkAutoBackup = () => {
+                    const now = new Date();
+                    const hours = now.getHours();
+                    const minutes = now.getMinutes();
+                    const lastBackupDate = localStorage.getItem(`${STORAGE_KEY}_last_auto_backup`);
+                    const currentBackupKey = `${now.toDateString()}_${hours >= 12 ? 'noon' : 'midnight'}`;
+
+                    if (lastBackupDate !== currentBackupKey && minutes === 0) {
+                        handleExport(true);
+                        localStorage.setItem(`${STORAGE_KEY}_last_auto_backup`, currentBackupKey);
+                    }
+                };
+
+                const interval = setInterval(checkAutoBackup, 60000); // 1분마다 체크
+                return () => clearInterval(interval);
             }, [journals, memos, todos]);
 
             useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
@@ -275,7 +293,8 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `bongs_diary_backup.json`;
+                const timestamp = isAuto ? 'auto_backup' : 'manual_backup';
+                a.download = `bongs_diary_${timestamp}.json`;
                 a.click();
                 if (!isAuto) showToast('백업 완료');
             };
@@ -424,7 +443,12 @@
                                                 <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
                                                     <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
                                                     <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
-                                                        <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                                            <button onClick={() => copyToClipboard(m.content)} className="text-[#1A1A1A] opacity-20 btn-press">
+                                                                <i data-lucide="copy" className="w-3.5 h-3.5"></i>
+                                                            </button>
+                                                        </div>
                                                         <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
                                                     </div>
                                                 </div>
@@ -444,7 +468,12 @@
                                                 <div key={m.id} className="bg-white p-5 rounded-2xl border border-black/5">
                                                     <p className="text-[14px] opacity-80 whitespace-pre-wrap memo-content">{m.content}</p>
                                                     <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
-                                                        <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-[8px] font-black opacity-20">{m.date}</span>
+                                                            <button onClick={() => copyToClipboard(m.content)} className="text-[#1A1A1A] opacity-20 btn-press">
+                                                                <i data-lucide="copy" className="w-3.5 h-3.5"></i>
+                                                            </button>
+                                                        </div>
                                                         <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
                                                     </div>
                                                 </div>
