@@ -139,7 +139,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.2';
+        const APP_VERSION = 'v3.5.3';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -162,7 +162,7 @@
             const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_todos`) || '[]'));
 
             const [newTodo, setNewTodo] = useState('');
-            const [newMemo, setNewMemo] = useState({ content: '', tag: '' });
+            const [newMemo, setNewMemo] = useState({ content: '', tag: '', id: null }); // id 추가 (수정용)
             const [searchQuery, setSearchQuery] = useState('');
 
             useEffect(() => {
@@ -186,7 +186,7 @@
                     }
                 };
 
-                const interval = setInterval(checkAutoBackup, 60000); // 1분마다 체크
+                const interval = setInterval(checkAutoBackup, 60000); 
                 return () => clearInterval(interval);
             }, [journals, memos, todos]);
 
@@ -316,6 +316,27 @@
                 e.target.value = null;
             };
 
+            // 메모 작성/수정 핸들러
+            const saveMemo = () => {
+                if(!newMemo.content.trim()) return;
+                
+                if (newMemo.id) {
+                    // 수정 모드
+                    setMemos(memos.map(m => m.id === newMemo.id ? { ...m, content: newMemo.content, tag: newMemo.tag } : m));
+                    showToast('메모 수정됨');
+                } else {
+                    // 신규 모드
+                    setMemos([{id:Date.now(), content:newMemo.content, tag:newMemo.tag, date:new Date().toLocaleDateString()}, ...memos]);
+                    showToast('메모 추가됨');
+                }
+                setNewMemo({content:'', tag:'', id: null});
+            };
+
+            const startEditMemo = (memo) => {
+                setNewMemo({ content: memo.content, tag: memo.tag || '', id: memo.id });
+                window.scrollTo({ top: 0, behavior: 'smooth' }); // 입력창으로 스크롤
+            };
+
             return (
                 <div className="app-container">
                     {message && (
@@ -413,7 +434,13 @@
 
                         {activeTab === 'Memo' && (
                             <div className="fade-in space-y-6 pt-3 pb-8">
-                                <div className="bg-[#F1F0EB] p-3 rounded-2xl space-y-3">
+                                <div className={`p-3 rounded-2xl space-y-3 transition-colors ${newMemo.id ? 'bg-blue-50 border border-blue-100' : 'bg-[#F1F0EB]'}`}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-[10px] font-black uppercase opacity-40">{newMemo.id ? 'Edit Mode' : 'New Memo'}</span>
+                                        {newMemo.id && (
+                                            <button onClick={() => setNewMemo({content:'', tag:'', id: null})} className="text-[9px] font-bold text-blue-500 underline uppercase">Cancel Edit</button>
+                                        )}
+                                    </div>
                                     <div className="space-y-2">
                                         <input className="w-full bg-white px-3 py-2 rounded-lg text-xs font-bold" placeholder="#태그 (선택)" value={newMemo.tag} onChange={e=>setNewMemo({...newMemo, tag: e.target.value})} />
                                         {existingTags.length > 0 && (
@@ -425,11 +452,9 @@
                                         )}
                                     </div>
                                     <textarea className="w-full bg-transparent p-1 text-[13px] min-h-[60px] resize-none border-none memo-content" placeholder="여기에 메모하세요..." value={newMemo.content} onChange={e=>setNewMemo({...newMemo, content: e.target.value})} />
-                                    <button onClick={()=>{
-                                        if(!newMemo.content.trim()) return;
-                                        setMemos([{id:Date.now(), content:newMemo.content, tag:newMemo.tag, date:new Date().toLocaleDateString()}, ...memos]);
-                                        setNewMemo({content:'', tag:''});
-                                    }} className="w-full bg-[#1A1A1A] text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest">Add Memo</button>
+                                    <button onClick={saveMemo} className={`w-full text-white py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${newMemo.id ? 'bg-blue-600 shadow-lg' : 'bg-[#1A1A1A]'}`}>
+                                        {newMemo.id ? 'Update Memo' : 'Add Memo'}
+                                    </button>
                                 </div>
 
                                 <div className="space-y-8">
@@ -447,6 +472,9 @@
                                                             <span className="text-[8px] font-black opacity-20">{m.date}</span>
                                                             <button onClick={() => copyToClipboard(m.content)} className="text-[#1A1A1A] opacity-20 btn-press">
                                                                 <i data-lucide="copy" className="w-3.5 h-3.5"></i>
+                                                            </button>
+                                                            <button onClick={() => startEditMemo(m)} className="text-[#1A1A1A] opacity-20 btn-press">
+                                                                <i data-lucide="edit-3" className="w-3.5 h-3.5"></i>
                                                             </button>
                                                         </div>
                                                         <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
@@ -472,6 +500,9 @@
                                                             <span className="text-[8px] font-black opacity-20">{m.date}</span>
                                                             <button onClick={() => copyToClipboard(m.content)} className="text-[#1A1A1A] opacity-20 btn-press">
                                                                 <i data-lucide="copy" className="w-3.5 h-3.5"></i>
+                                                            </button>
+                                                            <button onClick={() => startEditMemo(m)} className="text-[#1A1A1A] opacity-20 btn-press">
+                                                                <i data-lucide="edit-3" className="w-3.5 h-3.5"></i>
                                                             </button>
                                                         </div>
                                                         <button onClick={()=>setMemos(memos.filter(item=>item.id!==m.id))} className="text-red-400 opacity-20"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i></button>
