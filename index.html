@@ -97,7 +97,6 @@
             overflow: hidden;
         }
 
-        /* 메모 카드 확장 및 강조 애니메이션 */
         .memo-card-highlighted {
             border-color: #3b82f6 !important;
             border-width: 2px !important;
@@ -151,7 +150,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.8';
+        const APP_VERSION = 'v3.5.9';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -161,9 +160,7 @@
             const [showCalendar, setShowCalendar] = useState(false);
             const [message, setMessage] = useState('');
             
-            // 확장된 메모 ID들을 추적하는 Set
             const [expandedMemoIds, setExpandedMemoIds] = useState(new Set());
-            // 현재 강조(테두리 색상)된 단일 메모 ID
             const [highlightedMemoId, setHighlightedMemoId] = useState(null);
             
             const [weekAnchor, setWeekAnchor] = useState(() => {
@@ -206,7 +203,6 @@
                 setWeekAnchor(d);
             }, [currentDate]);
 
-            // 메모 탭 이동 시 강조된 메모 스크롤 포커싱
             useEffect(() => {
                 if (activeTab === 'Memo' && highlightedMemoId) {
                     setTimeout(() => {
@@ -356,12 +352,8 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
-            // 메모 선택 및 토글 핸들러
             const handleMemoSelect = (memoId) => {
-                // 강조 상태 업데이트: 같은 메모면 토글(끄기), 아니면 새 메모 강조
                 setHighlightedMemoId(prevId => prevId === memoId ? null : memoId);
-                
-                // 확장 상태 업데이트
                 setExpandedMemoIds(prev => {
                     const newSet = new Set(prev);
                     if (newSet.has(memoId)) {
@@ -403,7 +395,6 @@
             };
 
             const handleTabChange = (tabId) => {
-                // 검색 탭 진입 시 강조 및 확장 상태 리셋
                 if (tabId === 'Search') {
                     setExpandedMemoIds(new Set());
                     setHighlightedMemoId(null);
@@ -485,7 +476,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <textarea className="flex-1 bg-transparent border-none resize-none journal-textarea placeholder:opacity-10" placeholder="오늘의 생각을 기록해보세요..." value={journals[currentDate.toDateString()] || ''} onChange={(e) => setJournals({...journals, [currentDate.toDateString()]: e.target.value})} />
+                                <textarea className="flex-1 bg-transparent border-none resize-none journal-textarea placeholder:opacity-10" placeholder="오늘은 어떤일이 있었나요?" value={journals[currentDate.toDateString()] || ''} onChange={(e) => setJournals({...journals, [currentDate.toDateString()]: e.target.value})} />
                             </div>
                         )}
 
@@ -582,7 +573,6 @@
                                                     setCurrentDate(new Date(item.date));
                                                     setActiveTab('Journal');
                                                 } else if (item.type === 'Memo') {
-                                                    // 검색 결과 클릭 시: 강조 메모 설정 및 확장 상태 추가
                                                     setHighlightedMemoId(item.id);
                                                     setExpandedMemoIds(prev => new Set(prev).add(item.id));
                                                     setActiveTab('Memo');
