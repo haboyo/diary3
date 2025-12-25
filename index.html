@@ -56,7 +56,7 @@
         }
 
         header { flex-shrink: 0; background: var(--bg-main); z-index: 10; }
-        main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px; }
+        main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px; scroll-behavior: smooth; }
         
         nav { 
             flex-shrink: 0; 
@@ -97,9 +97,13 @@
             overflow: hidden;
         }
 
+        /* 메모 카드 확장 및 강조 애니메이션 */
         .memo-card-expanded {
-            border-color: rgba(59, 130, 246, 0.3) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-color: #3b82f6 !important;
+            border-width: 2px !important;
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 8px 10px -6px rgba(59, 130, 246, 0.1);
+            transform: scale(1.01);
+            z-index: 5;
         }
 
         .memo-textarea-expandable {
@@ -147,7 +151,7 @@
         };
 
         const STORAGE_KEY = 'bong_diary_pro_v3';
-        const APP_VERSION = 'v3.5.6';
+        const APP_VERSION = 'v3.5.7';
         const APP_NAME = "Bong's Diary";
 
         const App = () => {
@@ -157,7 +161,10 @@
             const [showCalendar, setShowCalendar] = useState(false);
             const [message, setMessage] = useState('');
             
+            // 확장된 메모 ID들을 추적하는 Set
             const [expandedMemoIds, setExpandedMemoIds] = useState(new Set());
+            // 검색에서 선택되어 강조된 메모 ID
+            const [highlightedMemoId, setHighlightedMemoId] = useState(null);
             
             const [weekAnchor, setWeekAnchor] = useState(() => {
                 const d = new Date();
@@ -167,6 +174,7 @@
             
             const fileInputRef = useRef(null);
             const memoTextareaRef = useRef(null);
+            const mainScrollRef = useRef(null);
             
             const [journals, setJournals] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_journals`) || '{}'));
             const [memos, setMemos] = useState(() => JSON.parse(localStorage.getItem(`${STORAGE_KEY}_memos`) || '[]'));
@@ -180,23 +188,6 @@
                 localStorage.setItem(`${STORAGE_KEY}_journals`, JSON.stringify(journals));
                 localStorage.setItem(`${STORAGE_KEY}_memos`, JSON.stringify(memos));
                 localStorage.setItem(`${STORAGE_KEY}_todos`, JSON.stringify(todos));
-            }, [journals, memos, todos]);
-
-            useEffect(() => {
-                const checkAutoBackup = () => {
-                    const now = new Date();
-                    const hours = now.getHours();
-                    const minutes = now.getMinutes();
-                    const lastBackupDate = localStorage.getItem(`${STORAGE_KEY}_last_auto_backup`);
-                    const currentBackupKey = `${now.toDateString()}_${hours >= 12 ? 'noon' : 'midnight'}`;
-
-                    if (lastBackupDate !== currentBackupKey && minutes === 0) {
-                        handleExport(true);
-                        localStorage.setItem(`${STORAGE_KEY}_last_auto_backup`, currentBackupKey);
-                    }
-                };
-                const interval = setInterval(checkAutoBackup, 60000); 
-                return () => clearInterval(interval);
             }, [journals, memos, todos]);
 
             useEffect(() => {
@@ -214,6 +205,20 @@
                 d.setDate(d.getDate() - d.getDay());
                 setWeekAnchor(d);
             }, [currentDate]);
+
+            // 메모 탭으로 이동 시 강조된 메모가 있다면 스크롤 이동
+            useEffect(() => {
+                if (activeTab === 'Memo' && highlightedMemoId) {
+                    setTimeout(() => {
+                        const element = document.getElementById(`memo-${highlightedMemoId}`);
+                        if (element && mainScrollRef.current) {
+                            const rect = element.getBoundingClientRect();
+                            const scrollPos = element.offsetTop - (mainScrollRef.current.clientHeight / 2) + (rect.height / 2);
+                            mainScrollRef.current.scrollTo({ top: scrollPos, behavior: 'smooth' });
+                        }
+                    }, 300);
+                }
+            }, [activeTab, highlightedMemoId]);
 
             const existingTags = useMemo(() => {
                 const tags = memos.map(m => m.tag).filter(t => t && t.trim() !== '');
@@ -354,21 +359,27 @@
             const toggleMemoExpand = (memoId) => {
                 setExpandedMemoIds(prev => {
                     const newSet = new Set(prev);
-                    if (newSet.has(memoId)) newSet.delete(memoId);
-                    else newSet.add(memoId);
+                    if (newSet.has(memoId)) {
+                        newSet.delete(memoId);
+                        if (highlightedMemoId === memoId) setHighlightedMemoId(null);
+                    } else {
+                        newSet.add(memoId);
+                    }
                     return newSet;
                 });
             };
 
             const MemoCard = ({ m }) => {
                 const isExpanded = expandedMemoIds.has(m.id);
+                const isHighlighted = highlightedMemoId === m.id;
+                
                 return (
                     <div 
                         id={`memo-${m.id}`}
                         onClick={() => toggleMemoExpand(m.id)}
-                        className={`bg-white p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${isExpanded ? 'memo-card-expanded border-blue-200' : 'border-black/5'}`}
+                        className={`bg-white p-5 rounded-2xl border transition-all duration-300 cursor-pointer ${isExpanded ? 'memo-card-expanded' : 'border-black/5'} ${isHighlighted ? 'ring-4 ring-blue-100' : ''}`}
                     >
-                        <p className={`text-[14px] opacity-80 whitespace-pre-wrap memo-content ${!isExpanded ? 'line-clamp-2-custom' : ''}`}>
+                        <p className={`text-[14px] opacity-80 whitespace-pre-wrap memo-content transition-all ${!isExpanded ? 'line-clamp-2-custom' : ''}`}>
                             {m.content}
                         </p>
                         <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-50">
@@ -385,6 +396,16 @@
                         </div>
                     </div>
                 );
+            };
+
+            const handleTabChange = (tabId) => {
+                // 검색 탭을 다시 누르면 모든 메모 요약 상태로 복구
+                if (tabId === 'Search') {
+                    setExpandedMemoIds(new Set());
+                    setHighlightedMemoId(null);
+                }
+                setActiveTab(tabId);
+                if (tabId !== 'Search') setSearchQuery('');
             };
 
             return (
@@ -441,7 +462,7 @@
                         )}
                     </header>
 
-                    <main className="no-scrollbar px-5">
+                    <main ref={mainScrollRef} className="no-scrollbar px-5">
                         {activeTab === 'Journal' && (
                             <div className="h-full flex flex-col fade-in pt-1">
                                 <div className="flex justify-between items-center mb-4">
@@ -557,13 +578,13 @@
                                                     setCurrentDate(new Date(item.date));
                                                     setActiveTab('Journal');
                                                 } else if (item.type === 'Memo') {
-                                                    // 메모 클릭 시: 탭 이동 + 확장 ID 추가
+                                                    // 메모 클릭 시: 확장 ID 추가 및 강조 ID 설정
                                                     setExpandedMemoIds(prev => new Set(prev).add(item.id));
+                                                    setHighlightedMemoId(item.id);
                                                     setActiveTab('Memo');
                                                 } else if (item.type === 'Todo') {
                                                     setActiveTab('Todo');
                                                 }
-                                                setSearchQuery('');
                                             }}>
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.type === 'Journal' ? 'bg-blue-50 text-blue-500' : item.type === 'Memo' ? 'bg-orange-50 text-orange-500' : 'bg-green-50 text-green-500'}`}>{item.type}</span>
@@ -632,7 +653,7 @@
                             { id: 'Search', icon: 'search' },
                             { id: 'Setting', icon: 'settings' }
                         ].map(tab => (
-                            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if(tab.id !== 'Search') setSearchQuery(''); }} className={`flex flex-col items-center flex-1 transition-all ${activeTab === tab.id ? 'opacity-100' : 'opacity-20'}`}>
+                            <button key={tab.id} onClick={() => handleTabChange(tab.id)} className={`flex flex-col items-center flex-1 transition-all ${activeTab === tab.id ? 'opacity-100' : 'opacity-20'}`}>
                                 <i data-lucide={tab.icon} className="w-[18px] h-[18px]" style={{strokeWidth: 2.5}}></i>
                                 <span className="text-[9px] font-black mt-1.5 tracking-tighter uppercase">{tab.id}</span>
                             </button>
